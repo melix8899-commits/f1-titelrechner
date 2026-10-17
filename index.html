@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Titelrechner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="F1 Titelrechner: Wie viele Punkte braucht ein Fahrer noch, wer kann Weltmeister werden und wann ist der Titel entschieden? Kostenlos und sofort berechnet.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Saira:wght@400;500;600&display=swap">
+<style>
+/* Layout: timing-tower rows under a headline verdict; purple = fastest, as on the timing screen */
+:root{--bg:#f4f3f7;--surface:#fff;--fg:#15131c;--muted:#6a667a;--line:#dedbe8;--purple:#6b2bd9;--purple-soft:#ece4fb;--green:#12803f;--red:#c0283a;
+--display:'Saira Condensed','Arial Narrow',sans-serif;--body:'Saira',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0d13;--surface:#17151f;--fg:#f2f0f8;--muted:#9c98ad;--line:#2b2838;--purple:#b98cff;--purple-soft:#2a2040;--green:#4cd18a;--red:#ff6b7d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e0d13;--surface:#17151f;--fg:#f2f0f8;--muted:#9c98ad;--line:#2b2838;--purple:#b98cff;--purple-soft:#2a2040;--green:#4cd18a;--red:#ff6b7d;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.5 var(--body);padding-block:28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.tag{font:500 .75rem var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--purple);margin:0}
+h1{font:700 3rem/.95 var(--display);text-transform:uppercase;margin:6px 0 0;text-wrap:balance}
+.lead{color:var(--muted);margin:10px 0 0;max-width:56ch}
+.verdict{background:var(--purple);color:#fff;border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:4px}
+:root[data-theme="dark"] .verdict,:root:not([data-theme="light"]) .verdict{color:#17101f}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .verdict{color:#fff}}
+.verdict b{font:700 2rem/1.05 var(--display);text-transform:uppercase}
+.verdict span{font:500 .9rem var(--mono)}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.field{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.field label{font-weight:500}
+.field small{display:block;color:var(--muted);font:400 .75rem var(--mono)}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:44px;height:44px;font-size:1.3rem}
+.stepper output{font:600 1.4rem var(--mono);min-width:2ch;text-align:center}
+button{font:inherit;font-weight:600;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;min-height:44px;padding:0 14px}
+button.primary{background:var(--purple);color:#fff;border-color:var(--purple)}
+:focus-visible{outline:3px solid var(--purple);outline-offset:2px}
+.tower{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.head,.row{display:grid;grid-template-columns:36px minmax(0,1fr) 76px 86px;gap:8px;align-items:center;padding:10px 14px}
+.head{font:500 .7rem var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.row{border-bottom:1px solid var(--line);position:relative}
+.row:last-child{border-bottom:0}
+.p{font:700 1.5rem var(--display);color:var(--muted)}
+.row.lead-row .p{color:var(--purple)}
+input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;min-height:44px;width:100%;min-width:0}
+input.num{font-family:var(--mono);text-align:right}
+.chip{font:600 .7rem var(--mono);text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-radius:4px;text-align:center}
+.chip.in{background:var(--purple-soft);color:var(--purple)}
+.chip.out{background:transparent;color:var(--red);border:1px solid var(--red)}
+.chip.win{background:var(--green);color:#fff}
+.bar{grid-column:2 / -1;height:8px;background:var(--bg);border-radius:4px;position:relative;overflow:hidden}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--purple);border-radius:4px}
+.bar u{position:absolute;left:0;top:0;bottom:0;background:var(--purple-soft);border-radius:4px}
+.bar s{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--fg)}
+.meta{grid-column:2 / -1;display:flex;justify-content:space-between;font:400 .75rem var(--mono);color:var(--muted);gap:8px;flex-wrap:wrap}
+.tools{display:flex;gap:10px;flex-wrap:wrap}
+.tools input{flex:1 1 180px;width:auto}
+.info{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;color:var(--muted);font-size:.9rem}
+.info h2{font:700 1.2rem var(--display);text-transform:uppercase;color:var(--fg);margin:0 0 6px}
+.info p{margin:0 0 8px;max-width:64ch}
+.warn{font:400 .8rem var(--mono);color:var(--muted)}
+.faq details{border-top:1px solid var(--line);padding:10px 0}
+.faq summary{cursor:pointer;font-weight:600;color:var(--fg);min-height:32px}
+.faq p{margin:6px 0 0}
+@media (max-width:460px){.head,.row{grid-template-columns:28px minmax(0,1fr) 64px 74px;padding-inline:10px}h1{font-size:2.5rem}}
+body{margin:0}
+</style>
+</head>
+<body>
+
+
+<main>
+<header>
+  <p class="tag">Formel-1-Rechner</p>
+  <h1>Titelrechner</h1>
+  <p class="lead">Wer kann noch Weltmeister werden? Trage Punkte und verbleibende Rennen ein. Die Tabelle rechnet sofort.</p>
+</header>
+
+<section class="verdict" aria-live="polite">
+  <b id="vtitle"></b>
+  <span id="vsub"></span>
+</section>
+
+<section class="controls" aria-label="Verbleibende Rennen">
+  <div class="field"><div><label for="races">Rennen übrig</label><small>25 Punkte für den Sieg</small></div>
+    <div class="stepper"><button data-step="races" data-d="-1" aria-label="Ein Rennen weniger">−</button><output id="races">5</output><button data-step="races" data-d="1" aria-label="Ein Rennen mehr">+</button></div></div>
+  <div class="field"><div><label for="sprints">Sprints übrig</label><small>8 Punkte für den Sieg</small></div>
+    <div class="stepper"><button data-step="sprints" data-d="-1" aria-label="Ein Sprint weniger">−</button><output id="sprints">2</output><button data-step="sprints" data-d="1" aria-label="Ein Sprint mehr">+</button></div></div>
+</section>
+
+<section aria-label="Fahrerwertung">
+  <div class="tower">
+    <div class="head"><span>Pos</span><span>Fahrer</span><span style="text-align:right">Punkte</span><span style="text-align:center">Status</span></div>
+    <div id="rows"></div>
+  </div>
+</section>
+
+<div class="tools">
+  <input id="newname" placeholder="Fahrer hinzufügen" aria-label="Name des neuen Fahrers">
+  <button class="primary" id="add">Hinzufügen</button>
+  <button id="reset">Beispieldaten laden</button>
+</div>
+<p class="warn">Die Punkte in der Tabelle sind Beispielwerte. Trage die aktuellen Punkte aus der offiziellen Wertung ein, bevor du das Ergebnis weitergibst.</p>
+
+<section class="info faq">
+  <h2>Häufige Fragen zur F1-Weltmeisterschaft</h2>
+  <details><summary>Wann ist der F1-Weltmeister rechnerisch entschieden?</summary><p>Sobald der Vorsprung des Führenden größer ist als alle Punkte, die noch zu holen sind. Setze oben die verbleibenden Rennen und Sprints ein, der Rechner zeigt dir den Zeitpunkt.</p></details>
+  <details><summary>Wie viele Punkte gibt es für einen Sieg in der Formel 1?</summary><p>25 Punkte für den Sieg im Rennen und 8 Punkte für den Sieg in einem Sprint. Prüfe vor der Saison, ob der Verband das System geändert hat.</p></details>
+  <details><summary>Wie viele Punkte kann ein Fahrer noch maximal holen?</summary><p>Verbleibende Rennen mal 25 plus verbleibende Sprints mal 8. Diese Zahl steht in jeder Zeile als Maximum.</p></details>
+  <details><summary>Was passiert bei Punktgleichheit?</summary><p>Dann entscheiden die Siege, danach die zweiten Plätze und so weiter. Der Rechner zeigt Fahrer bei Gleichstand als noch im Rennen.</p></details>
+</section>
+
+<section class="info">
+  <h2>So wird gerechnet</h2>
+  <p>Pro Rennen sind höchstens 25 Punkte möglich, pro Sprint höchstens 8. Ein Fahrer ist im Titelrennen, solange seine Punkte plus alle noch möglichen Punkte mindestens so hoch sind wie die des Führenden.</p>
+  <p>Bei Punktgleichheit entscheiden die Siege. Das bildet der Rechner nicht ab. "Im Rennen" heißt deshalb nur: rechnerisch noch möglich. Prüfe die aktuellen Regeln des Verbands, denn Punktesystem und Sprintanzahl können sich ändern.</p>
+</section>
+</main>
+
+<script>
+var DEF={races:5,sprints:2,d:[['Norris',380],['Piastri',356],['Verstappen',340],['Russell',250],['Leclerc',230],['Hamilton',190],['Antonelli',130]]};
+function load(){try{var v=localStorage.getItem('tr1');if(v)return JSON.parse(v)}catch(e){}return JSON.parse(JSON.stringify(DEF))}
+function save(){try{localStorage.setItem('tr1',JSON.stringify(S))}catch(e){}}
+var S=load();
+function esc(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function render(){
+  S.d.sort(function(a,b){return b[1]-a[1]});
+  var max=S.races*25+S.sprints*8,lead=S.d.length?S.d[0][1]:0,top=lead+max||1;
+  document.getElementById('races').textContent=S.races;
+  document.getElementById('sprints').textContent=S.sprints;
+  var alive=S.d.filter(function(x){return x[1]+max>=lead});
+  var second=S.d.length>1?S.d[1][1]:0;
+  var clinched=S.d.length>1&&lead-second>max;
+  var vt=document.getElementById('vtitle'),vs=document.getElementById('vsub');
+  if(!S.d.length){vt.textContent='Noch keine Fahrer';vs.textContent='Füge unten einen Fahrer hinzu.'}
+  else if(clinched){vt.textContent=S.d[0][0]+' ist Weltmeister';vs.textContent='Vorsprung '+(lead-second)+' Punkte, übrig sind nur '+max+' Punkte.'}
+  else{vt.textContent=alive.length+(alive.length===1?' Fahrer ist':' Fahrer sind')+' noch im Titelrennen';vs.textContent='Höchstens '+max+' Punkte sind noch zu holen. '+S.d[0][0]+' führt mit '+lead+'.'}
+  document.getElementById('rows').innerHTML=S.d.map(function(x,i){
+    var gap=lead-x[1],can=x[1]+max>=lead,st=i===0&&clinched?'win':(can?'in':'out');
+    var label=st==='win'?'Meister':(can?'Im Rennen':'Raus');
+    var cur=Math.max(0,x[1])/top*100,mx=Math.min(100,(x[1]+max)/top*100),ld=lead/top*100;
+    return '<div class="row'+(i===0?' lead-row':'')+'"><span class="p">'+(i+1)+'</span>'+
+      '<input data-i="'+i+'" data-f="n" value="'+esc(x[0]).replace(/"/g,'&quot;')+'" aria-label="Name Platz '+(i+1)+'">'+
+      '<input class="num" data-i="'+i+'" data-f="p" type="number" inputmode="numeric" min="0" value="'+x[1]+'" aria-label="Punkte '+esc(x[0])+'">'+
+      '<span class="chip '+st+'">'+label+'</span>'+
+      '<div class="bar" role="img" aria-label="Aktuelle Punkte und Maximum"><u style="width:'+mx+'%"></u><i style="width:'+cur+'%"></i><s style="left:'+ld+'%"></s></div>'+
+      '<div class="meta"><span>'+(i===0?'Führung':'−'+gap+' auf P1')+'</span><span>max. '+(x[1]+max)+'</span><button data-del="'+i+'" style="min-height:32px;padding:0 10px;font-size:.75rem">Entfernen</button></div></div>'}).join('');
+}
+document.addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  if(b.dataset.step){var k=b.dataset.step;S[k]=Math.max(0,Math.min(30,S[k]+(+b.dataset.d)));save();render()}
+  else if(b.dataset.del!==undefined){S.d.splice(+b.dataset.del,1);save();render()}
+  else if(b.id==='add'){var i=document.getElementById('newname'),n=i.value.trim();if(n){S.d.push([n.slice(0,24),0]);i.value='';save();render()}}
+  else if(b.id==='reset'){S=JSON.parse(JSON.stringify(DEF));save();render()}
+});
+document.addEventListener('change',function(e){
+  var t=e.target;if(t.dataset.i===undefined)return;var r=S.d[+t.dataset.i];
+  if(t.dataset.f==='n')r[0]=t.value.slice(0,24)||r[0];else r[1]=Math.max(0,parseInt(t.value,10)||0);
+  save();render();
+});
+render();
+</script>
+
+</body>
+</html>
